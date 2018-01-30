@@ -81,12 +81,10 @@ trajectory = np.cumsum(transform_data, axis=0)
 trajectory = pd.DataFrame(trajectory)
 smoothed_trajectory = trajectory.rolling(window=30, center=False).mean()
 smoothed_trajectory = smoothed_trajectory.fillna(method='bfill')
-# TODO: Check if these values are correct
 smoothed_trajectory.to_csv('{}/smoothed_trajectory.csv'.format(output_dir))
 
 # Remove 'trajectory', replace with 'smoothed_trajectory' and save to CSV file
 new_transform_data = transform_data + (smoothed_trajectory - trajectory)
-# TODO: Check if these values are correct
 new_transform_data.to_csv('{}/new_transform_data.csv'.format(output_dir))
 print('[INFO]: Trajectory data calculations finished')
 # -----------------------------------------------------------------
