@@ -1,7 +1,7 @@
 # VideoStabilization
 
 ## Description
-Reduces distracting vibrations from videos by smoothing the transition between frames
+Reduces distracting vibrations from videos by smoothing the transition between frames in a video
 
 ## How it Works
 1. Find the transformation from frame[i-1] to frame[i] using optical flow for all frames in the video. The transformation consists of three parameters:
