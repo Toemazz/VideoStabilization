@@ -8,12 +8,12 @@ import os
 
 
 class VideoStabilizer:
-    def __init__(self, video_in_path, out_path, out_file_name='output_video.avi', side_by_side=False, max_width=600):
+    def __init__(self, video_in_path, video_out_path, side_by_side=False, crop_percent=None, max_width=500):
         # Initialize arguments
         self.video_in_path = video_in_path
-        self.out_path = out_path
-        self.out_file_name = out_file_name
+        self.video_out_path = video_out_path
         self.side_by_side = side_by_side
+        self.crop_percent = crop_percent
         self.max_width = max_width
 
         # Set up video capture
@@ -82,7 +82,7 @@ class VideoStabilizer:
 
         # Calculate rolling mean to smooth trajectory, 'backfill' and save to CSV file
         trajectory = pd.DataFrame(trajectory)
-        smoothed_trajectory = trajectory.rolling(window=30, center=False).mean()
+        smoothed_trajectory = trajectory.rolling(window=20, center=False).mean()
         smoothed_trajectory = smoothed_trajectory.fillna(method='bfill')
 
         # Remove 'trajectory', replace with 'smoothed_trajectory' and save to CSV file
@@ -110,8 +110,8 @@ class VideoStabilizer:
             w_write = w_write * 2
 
         # Setup video writer
-        video_out = cv2.VideoWriter(os.path.join(self.out_path, self.out_file_name),
-                                    cv2.VideoWriter_fourcc('P', 'I', 'M', '1'), self.fps, (w_write, h_write), True)
+        video_out = cv2.VideoWriter(self.video_out_path, cv2.VideoWriter_fourcc('P', 'I', 'M', '1'),
+                                    self.fps, (w_write, h_write), True)
 
         for k in np.arange(self.n_frames-1):
             # Read frame
@@ -128,11 +128,18 @@ class VideoStabilizer:
             # Apply saved transform
             curr_t = cv2.warpAffine(curr, t, (self.frame_w, self.frame_h))
 
+            # Crop current frame with transform applied
+            curr_t = self.border_crop(curr_t, crop_percent=self.crop_percent)
+
             if self.side_by_side:
+                # Also crop current frame without transform applied
+                curr = self.border_crop(curr, crop_percent=self.crop_percent)
+
                 # Resize to 'max_width' if 'frame_w' > than 'max_width'
                 curr = imutils.resize(curr, width=min(self.frame_w, self.max_width))
                 curr_t = imutils.resize(curr_t, width=min(self.frame_w, self.max_width))
-                # combine arrays for side by side
+
+                # Stack horizontally
                 frame_out = np.hstack((curr, curr_t))
             else:
                 # Resize to 'max_width' if 'frame_w' > than 'max_width'
@@ -146,7 +153,29 @@ class VideoStabilizer:
             video_out.write(frame_out)
 
         print('[INFO]: Actual video stabilization finished')
-        print('[INFO]: {} saved in {}'.format(self.out_file_name, self.out_path))
+        print('[INFO]: {} saved in {}'.format(self.video_out_path.split('/')[-1],
+                                              os.path.dirname(self.video_out_path)))
+
+    @staticmethod
+    def border_crop(frame, crop_percent):
+
+        if crop_percent is None:
+            return frame
+
+        crop_percent = crop_percent / 100
+
+        if crop_percent >= 50:
+            print('[ERR]: You cant crop the whole image!')
+
+        if frame.shape[-1] > 1:
+            h, w, _ = frame.shape
+        else:
+            h, w = frame.shape
+
+        h_crop, w_crop = int(h * crop_percent), int(w * crop_percent)
+
+        return frame[h_crop:h - h_crop, w_crop:w - w_crop]
 
 
-VideoStabilizer('videos/video1.mp4', 'output', side_by_side=True)
+# Example call to 'VideoStabilizer'
+VideoStabilizer('videos/video1.mp4', 'output/video1_out_crop.avi', side_by_side=True, crop_percent=None)
