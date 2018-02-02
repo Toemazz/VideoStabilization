@@ -102,3 +102,7 @@ ENV/
 
 # JetBrains
 .idea/
+
+# Video Files (because the files are too large for GitHub)
+videos/
+output/
